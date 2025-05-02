@@ -6,8 +6,10 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/45uperman/pokedexcli/internal/farfetched"
+	"github.com/45uperman/pokedexcli/internal/pokecache"
 )
 
 func TestCleanInput(t *testing.T) {
@@ -50,7 +52,8 @@ func TestCleanInput(t *testing.T) {
 }
 
 func TestCommands(t *testing.T) {
-	data, err := farfetched.PokeGet(farfetched.PokeURL + farfetched.LocationArea)
+	testCache := pokecache.NewCache(30 * time.Second)
+	data, err := farfetched.PokeGet(farfetched.PokeURL+farfetched.LocationArea, &testCache)
 	if err != nil {
 		t.Errorf("PokeGet failed to fetch data with error: %s", err)
 		t.FailNow()
@@ -94,6 +97,7 @@ func TestCommands(t *testing.T) {
 
 	for _, c := range cases {
 		testConfig := &config{}
+		testConfig.RuntimeCache = pokecache.NewCache(30 * time.Second)
 		oldStdout := os.Stdout
 		r, w, _ := os.Pipe()
 		os.Stdout = w
@@ -104,6 +108,7 @@ func TestCommands(t *testing.T) {
 		var buf bytes.Buffer
 		io.Copy(&buf, r)
 		actual := buf.String()
+
 		for _, line := range c.expected {
 			if !strings.Contains(actual, line) {
 				t.Errorf(
