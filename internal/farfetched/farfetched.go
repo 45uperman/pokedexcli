@@ -19,6 +19,61 @@ type PokePage struct {
 	} `json:"results"`
 }
 
+type PokeArea struct {
+	EncounterMethodRates []struct {
+		EncounterMethod struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"encounter_method"`
+		VersionDetails []struct {
+			Rate    int `json:"rate"`
+			Version struct {
+				Name string `json:"name"`
+				URL  string `json:"url"`
+			} `json:"version"`
+		} `json:"version_details"`
+	} `json:"encounter_method_rates"`
+	GameIndex int `json:"game_index"`
+	ID        int `json:"id"`
+	Location  struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	} `json:"location"`
+	Name  string `json:"name"`
+	Names []struct {
+		Language struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"language"`
+		Name string `json:"name"`
+	} `json:"names"`
+	PokemonEncounters []PokeEncounter `json:"pokemon_encounters"`
+}
+
+type PokeEncounter struct {
+	Pokemon struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	} `json:"pokemon"`
+	VersionDetails []struct {
+		EncounterDetails []struct {
+			Chance          int           `json:"chance"`
+			ConditionValues []interface{} `json:"condition_values"`
+			MaxLevel        int           `json:"max_level"`
+			Method          struct {
+				Name string `json:"name"`
+				URL  string `json:"url"`
+			} `json:"method"`
+			MinLevel int `json:"min_level"`
+		} `json:"encounter_details"`
+		MaxChance int `json:"max_chance"`
+		Version   struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"version"`
+	} `json:"version_details"`
+}
+
 const PokeURL string = "https://pokeapi.co/api/v2/"
 
 const LocationArea string = "location-area"
@@ -56,4 +111,13 @@ func BuildPage(data []byte) (PokePage, error) {
 		return PokePage{}, fmt.Errorf("error unmarshaling data: %w", err)
 	}
 	return page, nil
+}
+
+func ExploreArea(data []byte) ([]PokeEncounter, error) {
+	var area PokeArea
+	err := json.Unmarshal(data, &area)
+	if err != nil {
+		return []PokeEncounter{}, fmt.Errorf("error unmarshaling data: %w", err)
+	}
+	return area.PokemonEncounters, nil
 }

@@ -14,7 +14,7 @@ import (
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(*config) error
+	callback    func(*config, []string) error
 }
 
 type config struct {
@@ -49,6 +49,11 @@ func init() {
 			description: "Prints the previous page of areas",
 			callback:    commandMapB,
 		},
+		"explore": {
+			name:        "explore",
+			description: "Prints all the Pokemon in the provided area",
+			callback:    commandExplore,
+		},
 	}
 	isRunning = true
 }
@@ -62,23 +67,32 @@ func main() {
 		fmt.Print("Pokedex > ")
 		ok := scanner.Scan()
 		if !ok {
-			break
+			fmt.Println(scanner.Err())
+			isRunning = false
+			continue
 		}
 		input := cleanInput(scanner.Text())
+		if len(input) == 0 {
+			continue
+		}
+
 		command := input[0]
+		var args []string
+		if len(input) == 1 {
+			args = []string{""}
+		} else {
+			args = input[1:]
+		}
+
 		commandStruct, ok := supportedCommands[command]
 		if !ok {
 			fmt.Println("Invalid command!")
 			continue
 		}
-		err = commandStruct.callback(runtimeConfig)
-		if scanner.Err() != nil {
-			fmt.Println(scanner.Err())
-			isRunning = false
-		}
+
+		err = commandStruct.callback(runtimeConfig, args)
 		if err != nil {
 			fmt.Println(err)
-			isRunning = false
 		}
 	}
 	if scanner.Err() != nil || err != nil {
@@ -97,13 +111,13 @@ func cleanInput(text string) (cleanWords []string) {
 	return cleanWords
 }
 
-func commandExit(cfg *config) error {
+func commandExit(cfg *config, params []string) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	isRunning = false
 	return nil
 }
 
-func commandHelp(cfg *config) error {
+func commandHelp(cfg *config, params []string) error {
 	fmt.Printf("Welcome to the Pokedex!\nUsage:\n\n")
 	for _, command := range supportedCommands {
 		fmt.Printf("%s: %s\n", command.name, command.description)
@@ -111,7 +125,7 @@ func commandHelp(cfg *config) error {
 	return nil
 }
 
-func commandMap(cfg *config) error {
+func commandMap(cfg *config, params []string) error {
 	var err error
 	var url string
 
@@ -152,9 +166,7 @@ func commandMap(cfg *config) error {
 	return nil
 }
 
-func commandMapB(cfg *config) error {
-	var err error
-
+func commandMapB(cfg *config, params []string) error {
 	if !cfg.MapOpened {
 		fmt.Println("map is the command to open the map or move to the next page if the map is open, mapb is for moving to the previous page")
 		return nil
@@ -182,6 +194,40 @@ func commandMapB(cfg *config) error {
 		cfg.Previous = ""
 	} else {
 		cfg.Previous = *mapPage.Previous
+	}
+
+	return nil
+}
+
+func commandExplore(cfg *config, params []string) error {
+	if params[0] == "" {
+		fmt.Println("exlpore requires an area to explore")
+		return nil
+	}
+	baseURL := farfetched.PokeURL + farfetched.LocationArea
+
+	data, err := farfetched.PokeGet(
+		fmt.Sprintf("%s/%s", baseURL, params[0]),
+		&cfg.RuntimeCache,
+	)
+	if err != nil {
+		return err
+	}
+
+	if string(data) == "Not Found" {
+		return fmt.Errorf("error getting area info: resource %s not found", params[0])
+	}
+
+	encounters, err := farfetched.ExploreArea(data)
+	if err != nil {
+		return err
+	}
+
+	prefix := " - "
+	fmt.Printf("Exploring %s...\n", params[0])
+	fmt.Println("Found Pokemon:")
+	for _, encounter := range encounters {
+		fmt.Println(prefix + encounter.Pokemon.Name)
 	}
 
 	return nil

@@ -71,11 +71,11 @@ func TestCommands(t *testing.T) {
 	}
 
 	cases := []struct {
-		input    string
+		input    []string
 		expected []string
 	}{
 		{
-			input: "help",
+			input: []string{"help"},
 			expected: []string{
 				"Welcome to the Pokedex!",
 				"Usage:",
@@ -86,29 +86,41 @@ func TestCommands(t *testing.T) {
 			},
 		},
 		{
-			input:    "map",
+			input:    []string{"map"},
 			expected: firstPageResults,
 		},
 		{
-			input:    "mapb",
+			input:    []string{"mapb"},
 			expected: []string{"map is the command to open the map or move to the next page if the map is open, mapb is for moving to the previous page"},
+		}, {
+			input: []string{"explore", "pastoria-city-area"},
+			expected: []string{
+				"Exploring pastoria-city-area...",
+				"Found Pokemon:",
+				" - tentacool",
+				" - tentacruel",
+			},
 		},
 	}
 
 	for _, c := range cases {
 		testConfig := &config{}
 		testConfig.RuntimeCache = pokecache.NewCache(30 * time.Second)
+		var args []string
+		if len(c.input) == 1 {
+			args = []string{""}
+		} else {
+			args = c.input[1:]
+		}
 		oldStdout := os.Stdout
 		r, w, _ := os.Pipe()
 		os.Stdout = w
-		supportedCommands[c.input].callback(testConfig)
+		supportedCommands[c.input[0]].callback(testConfig, args)
 		w.Close()
 		os.Stdout = oldStdout
-
 		var buf bytes.Buffer
 		io.Copy(&buf, r)
 		actual := buf.String()
-
 		for _, line := range c.expected {
 			if !strings.Contains(actual, line) {
 				t.Errorf(
