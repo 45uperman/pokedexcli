@@ -290,10 +290,11 @@ func commandInspect(cfg *config, params []string) error {
 	fmt.Printf("Name: %s\n", pkmn.Name)
 	fmt.Printf("Height: %d\n", pkmn.Height)
 	fmt.Printf("Weight: %d\n", pkmn.Weight)
+	fmt.Printf("ID: %d\n", pkmn.ID)
 
 	fmt.Println("Stats:")
 	for _, stat := range pkmn.Stats {
-		fmt.Printf("%s%s %d\n", indent, stat.Stat.Name, stat.BaseStat)
+		fmt.Printf("%s%s: %d\n", indent, stat.Stat.Name, stat.BaseStat)
 	}
 
 	fmt.Println("Types:")

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -111,12 +112,35 @@ func TestCommands(t *testing.T) {
 			// squirtle squad
 			expected: []string{"Throwing a Pokeball at squirtle..."},
 		},
+		{
+			input: []string{"inspect", "squirtle"},
+			// squirtle squad
+			expected: []string{" - defense: 65", " - special-defense: 64"},
+		},
+	}
+
+	testConfig := &config{}
+	testConfig.RuntimeCache = pokecache.NewCache(30 * time.Second)
+
+	fullURL := fmt.Sprintf("%s/pokemon/%s", farfetched.PokeURL, "squirtle")
+
+	data, err = farfetched.PokeGet(fullURL, &testConfig.RuntimeCache)
+	if err != nil {
+		t.Error("couldn't get squirtle D:")
+		t.FailNow()
+	}
+
+	squirtle, err := farfetched.BuildPokemon("squirtle", fullURL, data)
+	if err != nil {
+		t.Error("couldn't get squirtle D:")
+		t.FailNow()
 	}
 
 	for _, c := range cases {
 		testConfig := &config{}
 		testConfig.RuntimeCache = pokecache.NewCache(30 * time.Second)
 		testConfig.Pokedex = farfetched.NewPokedex()
+		testConfig.Pokedex.Catch(squirtle)
 		var args []string
 		if len(c.input) == 1 {
 			args = []string{""}
