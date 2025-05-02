@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -22,6 +23,7 @@ type config struct {
 	Previous     string
 	MapOpened    bool
 	RuntimeCache pokecache.Cache
+	Pokedex      farfetched.Pokedex
 }
 
 var supportedCommands map[string]cliCommand
@@ -41,18 +43,28 @@ func init() {
 		},
 		"map": {
 			name:        "map",
-			description: "Prints the next page of areas",
+			description: "Displays the next page of areas",
 			callback:    commandMap,
 		},
 		"mapb": {
 			name:        "mapb",
-			description: "Prints the previous page of areas",
+			description: "Displays the previous page of areas",
 			callback:    commandMapB,
 		},
 		"explore": {
 			name:        "explore",
-			description: "Prints all the Pokemon in the provided area",
+			description: "Displays all the Pokemon in the provided area",
 			callback:    commandExplore,
+		},
+		"catch": {
+			name:        "catch",
+			description: "Tries to catch the provided Pokemon",
+			callback:    commandCatch,
+		},
+		"inspect": {
+			name:        "inspect",
+			description: "Displays information about the provided Pokemon",
+			callback:    commandInspect,
 		},
 	}
 	isRunning = true
@@ -61,8 +73,9 @@ func init() {
 func main() {
 	var err error
 	runtimeConfig := &config{}
-	scanner := bufio.NewScanner(os.Stdin)
 	runtimeConfig.RuntimeCache = pokecache.NewCache(5 * time.Second)
+	runtimeConfig.Pokedex = farfetched.NewPokedex()
+	scanner := bufio.NewScanner(os.Stdin)
 	for isRunning {
 		fmt.Print("Pokedex > ")
 		ok := scanner.Scan()
@@ -201,7 +214,7 @@ func commandMapB(cfg *config, params []string) error {
 
 func commandExplore(cfg *config, params []string) error {
 	if params[0] == "" {
-		fmt.Println("exlpore requires an area to explore")
+		fmt.Println("exlpore requires an area to explore - try looking at the map to see where you can go!")
 		return nil
 	}
 	baseURL := farfetched.PokeURL + farfetched.LocationArea
@@ -228,6 +241,64 @@ func commandExplore(cfg *config, params []string) error {
 	fmt.Println("Found Pokemon:")
 	for _, encounter := range encounters {
 		fmt.Println(prefix + encounter.Pokemon.Name)
+	}
+
+	return nil
+}
+
+func commandCatch(cfg *config, params []string) error {
+	if params[0] == "" {
+		fmt.Println("catch requires a pokemon to catch - try exploring an area to see what's out there!")
+		return nil
+	}
+	fullURL := fmt.Sprintf("%s/pokemon/%s", farfetched.PokeURL, params[0])
+
+	data, err := farfetched.PokeGet(fullURL, &cfg.RuntimeCache)
+	if err != nil {
+		return err
+	}
+
+	if string(data) == "Not Found" {
+		return fmt.Errorf("error getting pokemon info: resource %s not found", params[0])
+	}
+
+	pkmn, err := farfetched.BuildPokemon(params[0], fullURL, data)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Throwing a Pokeball at %s...\n", pkmn.Name)
+	dice := rand.New(rand.NewSource(time.Now().UnixNano()))
+	if dice.Intn(pkmn.BaseExperience) > 40 {
+		fmt.Printf("%s escaped!\n", pkmn.Name)
+	} else {
+		cfg.Pokedex.Catch(pkmn)
+		fmt.Printf("%s was caught!\n", pkmn.Name)
+	}
+
+	return nil
+}
+
+func commandInspect(cfg *config, params []string) error {
+	if params[0] == "" {
+		fmt.Println("inspect requires a pokemon to inspect - try checking your pokedex to see what pokemon you have!")
+		return nil
+	}
+	pkmn := cfg.Pokedex.Pokemon[params[0]]
+	indent := " - "
+
+	fmt.Printf("Name: %s\n", pkmn.Name)
+	fmt.Printf("Height: %d\n", pkmn.Height)
+	fmt.Printf("Weight: %d\n", pkmn.Weight)
+
+	fmt.Println("Stats:")
+	for _, stat := range pkmn.Stats {
+		fmt.Printf("%s%s %d\n", indent, stat.Stat.Name, stat.BaseStat)
+	}
+
+	fmt.Println("Types:")
+	for _, t := range pkmn.Types {
+		fmt.Printf("%s%s\n", indent, t.Type.Name)
 	}
 
 	return nil

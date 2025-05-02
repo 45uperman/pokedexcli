@@ -55,23 +55,36 @@ type PokeEncounter struct {
 		Name string `json:"name"`
 		URL  string `json:"url"`
 	} `json:"pokemon"`
-	VersionDetails []struct {
-		EncounterDetails []struct {
-			Chance          int           `json:"chance"`
-			ConditionValues []interface{} `json:"condition_values"`
-			MaxLevel        int           `json:"max_level"`
-			Method          struct {
-				Name string `json:"name"`
-				URL  string `json:"url"`
-			} `json:"method"`
-			MinLevel int `json:"min_level"`
-		} `json:"encounter_details"`
-		MaxChance int `json:"max_chance"`
-		Version   struct {
+}
+
+type Pokemon struct {
+	Name           string
+	URL            string
+	ID             int `json:"id"`
+	Height         int `json:"height"`
+	Weight         int `json:"weight"`
+	BaseExperience int `json:"base_experience"`
+	Stats          []struct {
+		BaseStat int `json:"base_stat"`
+		Stat     struct {
 			Name string `json:"name"`
-			URL  string `json:"url"`
-		} `json:"version"`
-	} `json:"version_details"`
+		} `json:"stat"`
+	} `json:"stats"`
+	Types []struct {
+		Type struct {
+			Name string `json:"name"`
+		} `json:"type"`
+	} `json:"types"`
+}
+
+type Pokedex struct {
+	NumPokemon int
+	NumCaught  int
+	Pokemon    map[string]Pokemon
+}
+
+func (pd Pokedex) Catch(pkmn Pokemon) {
+	pd.Pokemon[pkmn.Name] = pkmn
 }
 
 const PokeURL string = "https://pokeapi.co/api/v2/"
@@ -104,6 +117,15 @@ func PokeGet(url string, c *pokecache.Cache) ([]byte, error) {
 	return data, nil
 }
 
+func NewPokedex() Pokedex {
+	dex := Pokedex{
+		NumPokemon: 1025,
+		NumCaught:  0,
+		Pokemon:    make(map[string]Pokemon, 5),
+	}
+	return dex
+}
+
 func BuildPage(data []byte) (PokePage, error) {
 	var page PokePage
 	err := json.Unmarshal(data, &page)
@@ -111,6 +133,18 @@ func BuildPage(data []byte) (PokePage, error) {
 		return PokePage{}, fmt.Errorf("error unmarshaling data: %w", err)
 	}
 	return page, nil
+}
+
+func BuildPokemon(name, url string, data []byte) (Pokemon, error) {
+	pkmn := Pokemon{
+		Name: name,
+		URL:  url,
+	}
+	err := json.Unmarshal(data, &pkmn)
+	if err != nil {
+		return Pokemon{}, fmt.Errorf("error unmarshaling data: %w", err)
+	}
+	return pkmn, nil
 }
 
 func ExploreArea(data []byte) ([]PokeEncounter, error) {

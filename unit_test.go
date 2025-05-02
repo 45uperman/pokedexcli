@@ -82,7 +82,11 @@ func TestCommands(t *testing.T) {
 				"",
 				"exit: Exit the Pokedex",
 				"help: Displays a help message",
-				"map: Prints the next page of areas",
+				"map: Displays the next page of areas",
+				"mapb: Displays the previous page of areas",
+				"explore: Displays all the Pokemon in the provided area",
+				"catch: Tries to catch the provided Pokemon",
+				"inspect: Displays information about the provided Pokemon",
 			},
 		},
 		{
@@ -92,7 +96,8 @@ func TestCommands(t *testing.T) {
 		{
 			input:    []string{"mapb"},
 			expected: []string{"map is the command to open the map or move to the next page if the map is open, mapb is for moving to the previous page"},
-		}, {
+		},
+		{
 			input: []string{"explore", "pastoria-city-area"},
 			expected: []string{
 				"Exploring pastoria-city-area...",
@@ -101,11 +106,17 @@ func TestCommands(t *testing.T) {
 				" - tentacruel",
 			},
 		},
+		{
+			input: []string{"catch", "squirtle"},
+			// squirtle squad
+			expected: []string{"Throwing a Pokeball at squirtle..."},
+		},
 	}
 
 	for _, c := range cases {
 		testConfig := &config{}
 		testConfig.RuntimeCache = pokecache.NewCache(30 * time.Second)
+		testConfig.Pokedex = farfetched.NewPokedex()
 		var args []string
 		if len(c.input) == 1 {
 			args = []string{""}
