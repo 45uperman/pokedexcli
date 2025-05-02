@@ -1,25 +1,18 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
+
+	"github.com/45uperman/pokedexcli/internal/farfetched"
 )
 
-func init() {
-	supportedCommands = map[string]cliCommand{
-		"exit": {
-			name:        "exit",
-			description: "Exit the Pokedex",
-			callback:    commandExit,
-		},
-		"help": {
-			name:        "help",
-			description: "Displays a help message",
-			callback:    commandHelp,
-		},
-	}
-}
 func TestCleanInput(t *testing.T) {
 	cases := []struct {
 		input    string
@@ -60,6 +53,39 @@ func TestCleanInput(t *testing.T) {
 }
 
 func TestCommands(t *testing.T) {
+	var err error
+	var res *http.Response
+	tries := 0
+	for tries < 3 {
+		res, err = http.Get("https://pokeapi.co/api/v2/location-area")
+		if err == nil && res != nil {
+			break
+		}
+		if err != nil {
+			fmt.Printf("Encountered error while fetching data from PokeApi: %s\n", err)
+		}
+		tries++
+	}
+	if err != nil || res == nil {
+		t.Errorf("Failed to fetch data from PokeApi after 3 tries\n")
+		t.FailNow()
+	}
+	defer res.Body.Close()
+
+	var firstMapPage farfetched.PokePage
+	decoder := json.NewDecoder(res.Body)
+	err = decoder.Decode(&firstMapPage)
+	if err != nil {
+		t.Errorf("Failed to stream PokeAPI response data to PokePage with error: %s", err)
+		t.FailNow()
+	}
+
+	var mapResults []string
+	for _, result := range firstMapPage.Results {
+		fmt.Println(result)
+		mapResults = append(mapResults, result.Name)
+	}
+
 	cases := []struct {
 		input    string
 		expected []string
@@ -72,33 +98,36 @@ func TestCommands(t *testing.T) {
 				"",
 				"exit: Exit the Pokedex",
 				"help: Displays a help message",
+				"map: Prints the next page of areas",
 			},
+		},
+		{
+			input:    "map",
+			expected: mapResults,
 		},
 	}
 
 	for _, c := range cases {
-		var actual []string
+		oldStdout := os.Stdout
 		r, w, _ := os.Pipe()
 		os.Stdout = w
 		supportedCommands[c.input].callback()
 		w.Close()
-		scanner := bufio.NewScanner(r)
-		i := 0
-		for scanner.Scan() {
-			actual = append(actual, scanner.Text())
-			if c.expected[i] != actual[i] {
+		os.Stdout = oldStdout
+
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+		actual := buf.String()
+		for _, line := range c.expected {
+			if !strings.Contains(actual, line) {
 				t.Errorf(
-					"Incorrect help message\nEXPECTED: %v\nACTUAL: %v",
+					"Missing line {%s} in output\nEXPECTED: %v\nACTUAL: %v",
+					line,
 					c.expected,
 					actual,
 				)
 				t.FailNow()
 			}
-			i++
-		}
-		if err := scanner.Err(); err != nil {
-			t.Error(err)
-			t.FailNow()
 		}
 	}
 }
