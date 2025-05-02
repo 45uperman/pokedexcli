@@ -2,10 +2,7 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
-	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -53,37 +50,21 @@ func TestCleanInput(t *testing.T) {
 }
 
 func TestCommands(t *testing.T) {
-	var err error
-	var res *http.Response
-	tries := 0
-	for tries < 3 {
-		res, err = http.Get("https://pokeapi.co/api/v2/location-area")
-		if err == nil && res != nil {
-			break
-		}
-		if err != nil {
-			fmt.Printf("Encountered error while fetching data from PokeApi: %s\n", err)
-		}
-		tries++
-	}
-	if err != nil || res == nil {
-		t.Errorf("Failed to fetch data from PokeApi after 3 tries\n")
-		t.FailNow()
-	}
-	defer res.Body.Close()
-
-	var firstMapPage farfetched.PokePage
-	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(&firstMapPage)
+	data, err := farfetched.PokeGet(farfetched.PokeURL + farfetched.LocationArea)
 	if err != nil {
-		t.Errorf("Failed to stream PokeAPI response data to PokePage with error: %s", err)
+		t.Errorf("PokeGet failed to fetch data with error: %s", err)
 		t.FailNow()
 	}
 
-	var mapResults []string
+	firstMapPage, err := farfetched.BuildPage(data)
+	if err != nil {
+		t.Errorf("BuildPage failed to build page with error: %s", err)
+		t.FailNow()
+	}
+
+	var firstPageResults []string
 	for _, result := range firstMapPage.Results {
-		fmt.Println(result)
-		mapResults = append(mapResults, result.Name)
+		firstPageResults = append(firstPageResults, result.Name)
 	}
 
 	cases := []struct {
@@ -103,15 +84,20 @@ func TestCommands(t *testing.T) {
 		},
 		{
 			input:    "map",
-			expected: mapResults,
+			expected: firstPageResults,
+		},
+		{
+			input:    "mapb",
+			expected: []string{"map is the command to open the map or move to the next page if the map is open, mapb is for moving to the previous page"},
 		},
 	}
 
 	for _, c := range cases {
+		testConfig := &config{}
 		oldStdout := os.Stdout
 		r, w, _ := os.Pipe()
 		os.Stdout = w
-		supportedCommands[c.input].callback()
+		supportedCommands[c.input].callback(testConfig)
 		w.Close()
 		os.Stdout = oldStdout
 
