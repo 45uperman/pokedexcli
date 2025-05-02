@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/45uperman/pokedexcli/internal/farfetched"
+	"github.com/45uperman/pokedexcli/internal/pokecache"
 )
 
 type cliCommand struct {
@@ -16,9 +18,10 @@ type cliCommand struct {
 }
 
 type config struct {
-	Next      string
-	Previous  string
-	MapOpened bool
+	Next         string
+	Previous     string
+	MapOpened    bool
+	RuntimeCache pokecache.Cache
 }
 
 var supportedCommands map[string]cliCommand
@@ -54,6 +57,7 @@ func main() {
 	var err error
 	runtimeConfig := &config{}
 	scanner := bufio.NewScanner(os.Stdin)
+	runtimeConfig.RuntimeCache = pokecache.NewCache(5 * time.Second)
 	for isRunning {
 		fmt.Print("Pokedex > ")
 		ok := scanner.Scan()
@@ -109,17 +113,17 @@ func commandHelp(cfg *config) error {
 
 func commandMap(cfg *config) error {
 	var err error
-	var path string
+	var url string
 
 	if !cfg.MapOpened {
-		path = farfetched.PokeURL + farfetched.LocationArea
+		url = farfetched.PokeURL + farfetched.LocationArea
 	} else if cfg.Next == "" {
 		fmt.Println("you're on the last page")
 	} else {
-		path = cfg.Next
+		url = cfg.Next
 	}
 
-	data, err := farfetched.PokeGet(path)
+	data, err := farfetched.PokeGet(url, &cfg.RuntimeCache)
 	if err != nil {
 		return err
 	}
@@ -159,7 +163,7 @@ func commandMapB(cfg *config) error {
 		return nil
 	}
 
-	data, err := farfetched.PokeGet(cfg.Previous)
+	data, err := farfetched.PokeGet(cfg.Previous, &cfg.RuntimeCache)
 	if err != nil {
 		return err
 	}

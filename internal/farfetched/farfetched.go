@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/45uperman/pokedexcli/internal/pokecache"
 )
 
 type PokePage struct {
@@ -21,21 +23,28 @@ const PokeURL string = "https://pokeapi.co/api/v2/"
 
 const LocationArea string = "location-area"
 
-func PokeGet(path string) ([]byte, error) {
-	// Fetches the data at path, reads it, and
+func PokeGet(url string, c *pokecache.Cache) ([]byte, error) {
+	// Fetches the data at url, reads it, and
 	// returns it as bytes.
 
-	res, err := http.Get(path)
+	data, ok := c.Get(url)
+	if ok {
+		return data, nil
+	}
+
+	res, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %w", err)
 	}
 	defer res.Body.Close()
 
-	data, err := io.ReadAll(res.Body)
+	data, err = io.ReadAll(res.Body)
 
 	if err != nil {
 		return nil, fmt.Errorf("error reading response: %w", err)
 	}
+
+	c.Add(url, data)
 
 	return data, nil
 }
