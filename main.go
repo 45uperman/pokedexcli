@@ -66,6 +66,11 @@ func init() {
 			description: "Displays information about the provided Pokemon",
 			callback:    commandInspect,
 		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "Displays the names of all the Pokemon you've caught",
+			callback:    commandPokedex,
+		},
 	}
 	isRunning = true
 }
@@ -248,7 +253,7 @@ func commandExplore(cfg *config, params []string) error {
 
 func commandCatch(cfg *config, params []string) error {
 	if params[0] == "" {
-		fmt.Println("catch requires a pokemon to catch - try exploring an area to see what's out there!")
+		fmt.Println("catch requires a Pokemon to catch - try exploring an area to see what's out there!")
 		return nil
 	}
 	fullURL := fmt.Sprintf("%s/pokemon/%s", farfetched.PokeURL, params[0])
@@ -302,5 +307,17 @@ func commandInspect(cfg *config, params []string) error {
 		fmt.Printf("%s%s\n", indent, t.Type.Name)
 	}
 
+	return nil
+}
+
+func commandPokedex(cfg *config, params []string) error {
+	if len(cfg.Pokedex.Pokemon) == 0 {
+		fmt.Println("you don't have any Pokemon yet - try using the catch command to catch some!")
+	} else {
+		fmt.Println("Your Pokedex:")
+	}
+	for _, pkmn := range cfg.Pokedex.Pokemon {
+		fmt.Printf(" - %s\n", pkmn.Name)
+	}
 	return nil
 }

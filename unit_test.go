@@ -117,6 +117,11 @@ func TestCommands(t *testing.T) {
 			// squirtle squad
 			expected: []string{" - defense: 65", " - special-defense: 64"},
 		},
+		{
+			input:    []string{"pokedex"},
+			expected: []string{" - squirtle"},
+			// squirtle squad
+		},
 	}
 
 	testConfig := &config{}
