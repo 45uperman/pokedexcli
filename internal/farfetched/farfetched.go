@@ -17,28 +17,29 @@ type PokePage struct {
 	} `json:"results"`
 }
 
-type FetchPath string
+const PokeURL string = "https://pokeapi.co/api/v2/"
 
-const POKEMAP FetchPath = "location-area"
+const LocationArea string = "location-area"
 
-const pokeURL string = "https://pokeapi.co/"
-
-func Farfetch[T any](obj T, path FetchPath) error {
+func Farfetch[T any](objPtr *T, path string) error {
 	// Fetches the data at pokeURL/path and streams it to obj if
 	// T is an implemented struct, otherwise it returns an error
-
-	if objType := reflect.TypeOf(obj); objType.Kind() != reflect.Struct {
-		return fmt.Errorf("Farfetch requires obj to be an implemented struct like PokePage, not %v", objType)
+	if objPtr == nil {
+		return fmt.Errorf("Farfetch received nil pointer")
 	}
 
-	res, err := http.Get(pokeURL + string(path))
+	if objType := reflect.TypeOf(*objPtr); objType.Kind() != reflect.Struct {
+		return fmt.Errorf("Farfetch requires obj to be a pointer to an implemented struct like PokePage, not %v", objType)
+	}
+
+	res, err := http.Get(path)
 	if err != nil {
 		return err
 	}
 	defer res.Body.Close()
 
 	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(&obj)
+	err = decoder.Decode(objPtr)
 	if err != nil {
 		return err
 	}
