@@ -3,8 +3,8 @@ package farfetched
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"reflect"
 )
 
 type PokePage struct {
@@ -21,28 +21,30 @@ const PokeURL string = "https://pokeapi.co/api/v2/"
 
 const LocationArea string = "location-area"
 
-func Farfetch[T any](objPtr *T, path string) error {
-	// Fetches the data at pokeURL/path and streams it to obj if
-	// T is an implemented struct, otherwise it returns an error
-	if objPtr == nil {
-		return fmt.Errorf("Farfetch received nil pointer")
-	}
-
-	if objType := reflect.TypeOf(*objPtr); objType.Kind() != reflect.Struct {
-		return fmt.Errorf("Farfetch requires obj to be a pointer to an implemented struct like PokePage, not %v", objType)
-	}
+func PokeGet(path string) ([]byte, error) {
+	// Fetches the data at path, reads it, and
+	// returns it as bytes.
 
 	res, err := http.Get(path)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error making request: %w", err)
 	}
 	defer res.Body.Close()
 
-	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(objPtr)
+	data, err := io.ReadAll(res.Body)
+
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error reading response: %w", err)
 	}
 
-	return nil
+	return data, nil
+}
+
+func BuildPage(data []byte) (PokePage, error) {
+	var page PokePage
+	err := json.Unmarshal(data, &page)
+	if err != nil {
+		return PokePage{}, fmt.Errorf("error unmarshaling data: %w", err)
+	}
+	return page, nil
 }
